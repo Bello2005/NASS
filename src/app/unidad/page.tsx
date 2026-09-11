@@ -249,7 +249,7 @@ export default function UnidadPage() {
           <Input
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="Novedad para el centro de despacho (opcional)"
+            placeholder="Novedad (opcional)"
             maxLength={500}
             aria-label="Novedad"
           />

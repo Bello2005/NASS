@@ -136,7 +136,10 @@ export default function CiudadanoPage() {
 
   const locationLabel =
     geo.status === "activa"
-      ? `Ubicación activa · precisión ${geo.accuracy ?? "?"} m`
+      // Algunos dispositivos no reportan precisión: mejor omitirla que mostrar "0 m".
+      ? geo.accuracy
+        ? `Ubicación activa · precisión ${geo.accuracy} m`
+        : "Ubicación activa"
       : geo.status === "denegada"
         ? "Permiso de ubicación denegado"
         : geo.status === "solicitando"

@@ -20,9 +20,12 @@ interface TopBarProps {
 
 export function TopBar({ onMenuClick }: TopBarProps) {
   const pathname = usePathname();
-  const [time, setTime] = useState(() => new Date());
+  // El reloj arranca vacío y se llena al montar: si se renderizara en el
+  // servidor, la hora no coincidiría con la del navegador al hidratar.
+  const [time, setTime] = useState<Date | null>(null);
 
   useEffect(() => {
+    setTime(new Date());
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
@@ -32,8 +35,12 @@ export function TopBar({ onMenuClick }: TopBarProps) {
     ROUTE_LABELS[Object.keys(ROUTE_LABELS).find((k) => pathname.startsWith(k)) ?? ""] ??
     "Panel";
 
-  const timeStr = time.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const dateStr = time.toLocaleDateString("es-CO", { weekday: "short", day: "2-digit", month: "short" });
+  const timeStr = time
+    ? time.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    : "--:--:--";
+  const dateStr = time
+    ? time.toLocaleDateString("es-CO", { weekday: "short", day: "2-digit", month: "short" })
+    : "";
 
   return (
     <header className="h-14 flex items-center justify-between px-4 md:px-6 border-b border-border bg-background shrink-0">

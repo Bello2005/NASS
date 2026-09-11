@@ -6,7 +6,6 @@ import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { SeverityDot } from "@/components/shared/SeverityDot";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CATEGORY_LABELS, PRIORITY_CONFIG } from "@/lib/constants";
@@ -50,7 +49,6 @@ export function IncidentTable({ incidents, isLoading }: IncidentTableProps) {
               <TableHead className="text-xs text-muted-foreground font-medium w-28">Código</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium">Título</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-24">Tipo</TableHead>
-              <TableHead className="text-xs text-muted-foreground font-medium w-10 text-center">G.</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-24">Prioridad</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-28">Estado</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-24">Unidad</TableHead>
@@ -67,9 +65,6 @@ export function IncidentTable({ incidents, isLoading }: IncidentTableProps) {
                   <span className="text-sm text-foreground font-medium line-clamp-1">{inc.title}</span>
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">{CATEGORY_LABELS[inc.category]}</TableCell>
-                <TableCell className="text-center">
-                  <SeverityDot severity={inc.severity} />
-                </TableCell>
                 <TableCell>
                   <span
                     className="text-xs font-semibold"

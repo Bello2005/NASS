@@ -3,6 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { PANIC_COUNTDOWN_SECONDS } from "@/lib/constants";
 
+/**
+ * Confirmación háptica. En una emergencia el usuario puede no estar mirando la
+ * pantalla: la vibración confirma que el botón respondió.
+ */
+function vibrate(pattern: number | number[]) {
+  if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
+  try {
+    navigator.vibrate(pattern);
+  } catch {
+    // Un dispositivo sin motor de vibración no debe romper la activación.
+  }
+}
+
 interface PanicButtonProps {
   /** Se ejecuta cuando la cuenta regresiva termina sin cancelación. */
   onTrigger: () => void | Promise<void>;
@@ -38,15 +51,19 @@ export function PanicButton({ onTrigger, disabled, sending }: PanicButtonProps) 
   function startCountdown() {
     setPhase("countdown");
     setRemaining(PANIC_COUNTDOWN_SECONDS);
+    vibrate(40);
     stopTimer();
     timer.current = setInterval(() => {
       setRemaining((value) => {
         if (value <= 1) {
           stopTimer();
           setPhase("idle");
+          // Patrón largo: la alerta salió.
+          vibrate([120, 60, 120, 60, 240]);
           void onTrigger();
           return PANIC_COUNTDOWN_SECONDS;
         }
+        vibrate(40);
         return value - 1;
       });
     }, 1000);
@@ -56,6 +73,7 @@ export function PanicButton({ onTrigger, disabled, sending }: PanicButtonProps) 
     stopTimer();
     setPhase("idle");
     setRemaining(PANIC_COUNTDOWN_SECONDS);
+    vibrate(15);
   }
 
   if (phase === "countdown") {
@@ -89,7 +107,14 @@ export function PanicButton({ onTrigger, disabled, sending }: PanicButtonProps) 
       <button
         type="button"
         disabled={disabled || sending}
-        onClick={() => (isConfirm ? startCountdown() : setPhase("confirm"))}
+        onClick={() => {
+          if (isConfirm) {
+            startCountdown();
+          } else {
+            vibrate(25);
+            setPhase("confirm");
+          }
+        }}
         className={`relative flex size-52 flex-col items-center justify-center rounded-full text-white transition active:scale-[.97] disabled:opacity-60 ${
           isConfirm
             ? "bg-red-500 ring-8 ring-red-500/30"

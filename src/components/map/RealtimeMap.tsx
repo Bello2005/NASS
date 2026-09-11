@@ -18,12 +18,18 @@ function incidentIcon(incident: Incident, selected: boolean) {
   const pulse = urgent
     ? `<span style="position:absolute;inset:-4px;border-radius:9999px;background:${color};opacity:.35;animation:nass-ping 1.4s cubic-bezier(0,0,.2,1) infinite"></span>`
     : "";
+  // La prioridad crítica se distingue por forma (rombo con anillo blanco) y no
+  // solo por color: un operador con daltonismo debe poder separarla de un vistazo.
+  const critical = incident.priority === "critica";
+  const shape = critical
+    ? "border-radius:3px;transform:rotate(45deg);outline:2px solid #ffffff;outline-offset:1px"
+    : "border-radius:9999px";
   return L.divIcon({
     className: "",
     iconAnchor: [size / 2, size / 2],
     html: `<div style="position:relative;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center">
       ${pulse}
-      <div style="position:relative;width:100%;height:100%;border-radius:9999px;background:${color};border:2px solid #0b0b0b;box-shadow:0 0 0 ${selected ? 3 : 1}px ${color}55"></div>
+      <div style="position:relative;width:100%;height:100%;${shape};background:${color};border:2px solid #0b0b0b;box-shadow:0 0 0 ${selected ? 3 : 1}px ${color}55"></div>
     </div>`,
   });
 }

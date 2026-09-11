@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { IncidentChat } from "@/components/shared/IncidentChat";
 import { VoiceCallButton } from "@/components/shared/VoiceCallButton";
 import { api, ApiError, type IncidentDetail } from "@/lib/api";
-import { INSTITUTION_CONFIG, STATUS_CONFIG } from "@/lib/constants";
+import { INSTITUTION_CONFIG, STATUS_CONFIG, STATUS_ORDER } from "@/lib/constants";
 import { formatTime } from "@/lib/date";
-import type { Incident } from "@/types/incident.types";
+import type { Incident, IncidentStatus } from "@/types/incident.types";
 
 interface ActiveAlertCardProps {
   incident: Incident;
@@ -31,7 +31,15 @@ export function ActiveAlertCard({ incident, detail, currentUserId, onChanged }: 
   const [cancelling, setCancelling] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
-  const reached = new Set(incident.timeline.map((event) => event.status));
+  // Un paso se marca cumplido si el caso ya lo superó, aunque el operador haya
+  // saltado estados: la barra de progreso nunca debe verse en desorden.
+  const rank = (status: IncidentStatus) => STATUS_ORDER.indexOf(status);
+  const reachedRank = Math.max(
+    rank(incident.status),
+    ...incident.timeline
+      .filter((event) => event.status !== "cancelada")
+      .map((event) => rank(event.status)),
+  );
   const status = STATUS_CONFIG[incident.status];
   const unit = detail?.unit;
 
@@ -70,7 +78,7 @@ export function ActiveAlertCard({ incident, detail, currentUserId, onChanged }: 
 
       <ol className="space-y-2">
         {CITIZEN_STEPS.map((step) => {
-          const done = reached.has(step.key);
+          const done = rank(step.key) <= reachedRank;
           const current = incident.status === step.key;
           return (
             <li key={step.key} className="flex items-center gap-3 text-sm">
