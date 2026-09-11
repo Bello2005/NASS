@@ -1,12 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { mockAuditLog } from "@/mocks/audit.mock";
+import { api } from "@/lib/api";
 
-export function useAuditLog() {
+export function useAudit(query?: string) {
   return useQuery({
-    queryKey: ["audit"],
-    queryFn: () => Promise.resolve(mockAuditLog),
-    staleTime: 60_000,
+    queryKey: ["audit", query ?? ""],
+    queryFn: async () => (await api.audit(query)).entries,
+    staleTime: 15_000,
   });
 }

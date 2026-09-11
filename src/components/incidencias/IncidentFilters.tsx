@@ -9,7 +9,7 @@ import {
 import { STATUS_CONFIG, SEVERITY_CONFIG, ZONE_LIST } from "@/lib/constants";
 import type { IncidentStatus, IncidentSeverity, QuibdoZone } from "@/types/incident.types";
 
-const ALL_STATUSES: IncidentStatus[] = ["nueva", "aceptada", "en_camino", "atendiendo", "cerrada", "cancelada"];
+const ALL_STATUSES: IncidentStatus[] = ["nueva", "recibida", "asignada", "en_camino", "en_sitio", "atendiendo", "resuelta", "cerrada", "cancelada"];
 const ALL_SEVERITIES: IncidentSeverity[] = [1, 2, 3, 4, 5];
 
 export interface IncidentFilterState {

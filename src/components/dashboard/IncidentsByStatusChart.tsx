@@ -5,7 +5,7 @@ import { useIncidents } from "@/hooks/useIncidents";
 import { STATUS_CONFIG } from "@/lib/constants";
 import type { IncidentStatus } from "@/types/incident.types";
 
-const STATUS_ORDER: IncidentStatus[] = ["nueva", "aceptada", "en_camino", "atendiendo", "cerrada"];
+const STATUS_ORDER: IncidentStatus[] = ["nueva", "recibida", "asignada", "en_camino", "en_sitio", "atendiendo", "cerrada"];
 
 export function IncidentsByStatusChart() {
   const { data: incidents } = useIncidents();

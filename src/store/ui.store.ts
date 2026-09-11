@@ -10,6 +10,9 @@ interface UIState {
 
   mapActiveFilters: IncidentStatus[];
   setMapActiveFilters: (filters: IncidentStatus[]) => void;
+
+  /** Estado de la conexión de tiempo real, alimentado por RealtimeAlerts. */
+  realtimeConnected: boolean;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -19,6 +22,8 @@ export const useUIStore = create<UIState>((set) => ({
   selectedIncidentId: null,
   setSelectedIncidentId: (id) => set({ selectedIncidentId: id }),
 
-  mapActiveFilters: ["nueva", "aceptada", "en_camino", "atendiendo"],
+  mapActiveFilters: ["nueva", "recibida", "asignada", "en_camino", "en_sitio", "atendiendo"],
   setMapActiveFilters: (filters) => set({ mapActiveFilters: filters }),
+
+  realtimeConnected: false,
 }));

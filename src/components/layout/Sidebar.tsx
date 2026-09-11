@@ -4,10 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Map, AlertTriangle, Users, BarChart3, ScrollText,
-  Shield, ChevronLeft, ChevronRight, X,
+  Shield, ChevronLeft, ChevronRight, X, FlaskConical, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import { useUIStore } from "@/store/ui.store";
+import { useSession } from "@/hooks/useSession";
+import { ROLE_CONFIG } from "@/lib/constants";
+import { api } from "@/lib/api";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const NAV_ITEMS = [
@@ -17,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/usuarios",    label: "Usuarios",     icon: Users },
   { href: "/analitica",   label: "Analítica",    icon: BarChart3 },
   { href: "/auditoria",   label: "Auditoría",    icon: ScrollText },
+  { href: "/simulador",   label: "Simulador",    icon: FlaskConical },
 ];
 
 interface SidebarProps {
@@ -25,7 +30,14 @@ interface SidebarProps {
 
 export function Sidebar({ onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user } = useSession();
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
+
+  async function signOut() {
+    await api.logout();
+    router.replace("/entrar");
+  }
 
   return (
     <aside
@@ -102,12 +114,21 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
         {(!sidebarCollapsed) && (
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-              CM
+              {user?.avatarInitials ?? "··"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-sidebar-foreground truncate">Carlos Mosquera</p>
-              <p className="text-xs text-muted-foreground truncate">Administrador</p>
+              <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.name ?? "Cargando…"}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user ? ROLE_CONFIG[user.role].label : ""}
+              </p>
             </div>
+            <button
+              onClick={signOut}
+              title="Cerrar sesión"
+              className="shrink-0 text-muted-foreground transition-colors hover:text-sidebar-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         )}
         {/* Collapse toggle — desktop only */}

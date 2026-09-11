@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useIncidentsStore } from "@/store/incidents.store";
+import { toast } from "sonner";
+import { api, ApiError } from "@/lib/api";
 import type { IncidentStatus } from "@/types/incident.types";
 
 export const incidentKeys = {
@@ -10,29 +11,64 @@ export const incidentKeys = {
 };
 
 export function useIncidents() {
-  const incidents = useIncidentsStore((s) => s.incidents);
-  return useQuery({
+  const query = useQuery({
     queryKey: incidentKeys.all,
-    queryFn: () => Promise.resolve(incidents),
-    staleTime: 30_000,
+    queryFn: async () => (await api.listIncidents()).incidents,
+    staleTime: 15_000,
   });
+  return query;
 }
 
 export function useIncident(id: string) {
-  const incidents = useIncidentsStore((s) => s.incidents);
   return useQuery({
     queryKey: incidentKeys.detail(id),
-    queryFn: () => Promise.resolve(incidents.find((i) => i.id === id) ?? null),
-    staleTime: 30_000,
+    queryFn: () => api.getIncident(id),
+    enabled: !!id,
+    staleTime: 5_000,
   });
 }
 
-export function useUpdateIncidentStatus() {
-  const updateStatus = useIncidentsStore((s) => s.updateIncidentStatus);
+/** Invalida incidentes y unidades: cualquier cambio de estado afecta a ambos. */
+export function useRefreshOperations() {
   const queryClient = useQueryClient();
-  return (id: string, status: IncidentStatus, actorName: string, actorId: string, note?: string) => {
-    updateStatus(id, status, actorName, actorId, note);
-    queryClient.invalidateQueries({ queryKey: incidentKeys.all });
-    queryClient.invalidateQueries({ queryKey: incidentKeys.detail(id) });
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: incidentKeys.all });
+    void queryClient.invalidateQueries({ queryKey: ["units"] });
+    void queryClient.invalidateQueries({ queryKey: ["analytics"] });
+  };
+}
+
+export function useUpdateIncidentStatus() {
+  const refresh = useRefreshOperations();
+  const queryClient = useQueryClient();
+
+  return async (id: string, status: IncidentStatus, note?: string) => {
+    try {
+      await api.setIncidentStatus(id, status, note);
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: incidentKeys.detail(id) });
+      return true;
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "No se pudo cambiar el estado");
+      return false;
+    }
+  };
+}
+
+export function useDispatchUnit() {
+  const refresh = useRefreshOperations();
+  const queryClient = useQueryClient();
+
+  return async (incidentId: string, unitId: string) => {
+    try {
+      const { unit } = await api.dispatch(incidentId, unitId);
+      toast.success(`Unidad ${unit.callsign} despachada`);
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: incidentKeys.detail(incidentId) });
+      return true;
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "No se pudo despachar la unidad");
+      return false;
+    }
   };
 }

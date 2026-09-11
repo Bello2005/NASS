@@ -2,7 +2,7 @@ import { STATUS_CONFIG } from "@/lib/constants";
 import type { IncidentStatus } from "@/types/incident.types";
 import { cn } from "@/lib/utils";
 
-const FLOW: IncidentStatus[] = ["nueva", "aceptada", "en_camino", "atendiendo", "cerrada"];
+const FLOW: IncidentStatus[] = ["nueva", "recibida", "asignada", "en_camino", "en_sitio", "atendiendo", "cerrada"];
 
 export function IncidentStatusFlow({ current }: { current: IncidentStatus }) {
   const currentIdx = FLOW.indexOf(current);

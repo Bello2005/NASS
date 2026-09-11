@@ -1,118 +1,112 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Lock } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Lock, ScrollText } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { RoleBadge } from "@/components/usuarios/RoleBadge";
-import { useAuditLog } from "@/hooks/useAudit";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAudit } from "@/hooks/useAudit";
 import { formatDateTime } from "@/lib/date";
-import { cn } from "@/lib/utils";
 import type { AuditAction } from "@/types/audit.types";
 
 const ACTION_LABELS: Record<AuditAction, string> = {
-  "incident.created":       "Incidencia creada",
-  "incident.status_changed":"Cambio de estado",
-  "incident.assigned":      "Agente asignado",
-  "incident.cancelled":     "Incidencia cancelada",
-  "user.created":           "Usuario creado",
-  "user.updated":           "Usuario actualizado",
-  "user.suspended":         "Usuario suspendido",
-  "user.reactivated":       "Usuario reactivado",
-  "agent.position_updated": "Posición actualizada",
-  "session.login":          "Inicio de sesión",
-  "session.logout":         "Cierre de sesión",
+  "incident.created":        "Incidente creado",
+  "incident.status_changed": "Cambio de estado",
+  "incident.assigned":       "Unidad asignada",
+  "incident.dispatched":     "Unidad despachada",
+  "incident.cancelled":      "Incidente cancelado",
+  "incident.closed":         "Incidente cerrado",
+  "message.created":         "Mensaje enviado",
+  "user.created":            "Usuario creado",
+  "user.updated":            "Usuario actualizado",
+  "user.suspended":          "Usuario suspendido",
+  "user.reactivated":        "Usuario reactivado",
+  "unit.position_updated":   "Posición de unidad",
+  "unit.status_changed":     "Estado de unidad",
+  "agent.position_updated":  "Posición de agente",
+  "session.login":           "Inicio de sesión",
+  "session.logout":          "Cierre de sesión",
 };
 
 const ACTION_COLORS: Partial<Record<AuditAction, string>> = {
-  "incident.created":        "text-blue-400",
-  "incident.status_changed": "text-yellow-400",
-  "user.suspended":          "text-red-400",
-  "user.created":            "text-green-400",
-  "session.login":           "text-muted-foreground",
-  "session.logout":          "text-muted-foreground",
+  "incident.created":   "text-red-400",
+  "incident.dispatched":"text-sky-400",
+  "incident.closed":    "text-emerald-400",
+  "incident.cancelled": "text-muted-foreground",
+  "session.login":      "text-muted-foreground",
+  "session.logout":     "text-muted-foreground",
 };
 
 export default function AuditoriaPage() {
-  const { data: entries, isLoading } = useAuditLog();
   const [search, setSearch] = useState("");
-
-  const filtered = (entries ?? []).filter((e) =>
-    !search ||
-    e.actorName.toLowerCase().includes(search.toLowerCase()) ||
-    e.resourceId.toLowerCase().includes(search.toLowerCase()) ||
-    ACTION_LABELS[e.action].toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: entries, isLoading } = useAudit(search.trim() || undefined);
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="space-y-5 p-4 md:p-6">
       <PageHeader
-        title="Historial de Auditoría"
-        subtitle="Registro inmutable de todas las acciones del sistema"
+        title="Historial de auditoría"
+        subtitle="Registro inmutable de toda acción crítica del sistema"
         actions={
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="w-3.5 h-3.5" />
-            Solo lectura
-          </div>
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="size-3.5" /> Solo lectura
+          </span>
         }
       />
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar en auditoría..."
-          className="pl-9 bg-card border-border h-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      <Input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Buscar por actor, acción o recurso"
+        className="max-w-sm"
+      />
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Cargando...</p>
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={Lock} title="Sin registros" description="No se encontraron entradas de auditoría" />
+        <div className="space-y-2">
+          {[0, 1, 2, 3, 4, 5].map((key) => <Skeleton key={key} className="h-11" />)}
+        </div>
+      ) : (entries ?? []).length === 0 ? (
+        <EmptyState icon={ScrollText} title="Sin registros" description="No hay eventos que coincidan con la búsqueda." />
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-border">
-                <TableHead className="text-xs text-muted-foreground font-medium w-36">Timestamp</TableHead>
-                <TableHead className="text-xs text-muted-foreground font-medium">Actor</TableHead>
-                <TableHead className="text-xs text-muted-foreground font-medium">Acción</TableHead>
-                <TableHead className="text-xs text-muted-foreground font-medium w-28">Recurso</TableHead>
-                <TableHead className="text-xs text-muted-foreground font-medium w-28">IP</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((entry) => (
-                <TableRow key={entry.id} className="border-border hover:bg-accent/20">
-                  <TableCell className="font-mono text-xs text-muted-foreground">{formatDateTime(entry.timestamp)}</TableCell>
-                  <TableCell>
+        <div className="overflow-x-auto rounded-xl border border-border">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-card text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 font-medium">Fecha y hora</th>
+                <th className="px-3 py-2 font-medium">Actor</th>
+                <th className="px-3 py-2 font-medium">Acción</th>
+                <th className="px-3 py-2 font-medium">Recurso</th>
+                <th className="px-3 py-2 font-medium">Detalle</th>
+                <th className="px-3 py-2 font-medium">IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(entries ?? []).map((entry) => (
+                <tr key={entry.id} className="border-t border-border">
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-muted-foreground">
+                    {formatDateTime(entry.timestamp)}
+                  </td>
+                  <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                        {entry.actorName[0]}
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-foreground">{entry.actorName}</p>
-                        <RoleBadge role={entry.actorRole} className="mt-0.5" />
-                      </div>
+                      <span className="whitespace-nowrap">{entry.actorName}</span>
+                      <RoleBadge role={entry.actorRole} />
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className={cn("text-xs font-medium", ACTION_COLORS[entry.action] ?? "text-foreground")}>
-                      {ACTION_LABELS[entry.action]}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{entry.resourceId}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{entry.ipAddress}</TableCell>
-                </TableRow>
+                  </td>
+                  <td className={`whitespace-nowrap px-3 py-2 font-medium ${ACTION_COLORS[entry.action] ?? ""}`}>
+                    {ACTION_LABELS[entry.action] ?? entry.action}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-muted-foreground">{entry.resourceId}</td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {Object.entries(entry.metadata)
+                      .map(([key, value]) => `${key}: ${value}`)
+                      .join(" · ") || "—"}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-muted-foreground">{entry.ipAddress}</td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-          </div>
+            </tbody>
+          </table>
         </div>
       )}
     </div>

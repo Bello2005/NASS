@@ -198,3 +198,7 @@
 .leaflet-control-attribution a {
   color: oklch(0.60 0.18 250) !important;
 }
+
+@keyframes nass-ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}

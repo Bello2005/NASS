@@ -5,7 +5,7 @@ import { STATUS_CONFIG } from "@/lib/constants";
 import { useUIStore } from "@/store/ui.store";
 import type { IncidentStatus } from "@/types/incident.types";
 
-const FILTERABLE_STATUSES: IncidentStatus[] = ["nueva", "aceptada", "en_camino", "atendiendo", "cerrada"];
+const FILTERABLE_STATUSES: IncidentStatus[] = ["nueva", "recibida", "asignada", "en_camino", "en_sitio", "atendiendo"];
 
 export function MapFiltersBar() {
   const { mapActiveFilters, setMapActiveFilters } = useUIStore();

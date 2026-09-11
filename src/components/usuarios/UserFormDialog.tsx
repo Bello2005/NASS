@@ -1,88 +1,105 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ZONE_LIST } from "@/lib/constants";
-import type { User, UserRole } from "@/types/user.types";
-import type { QuibdoZone } from "@/types/incident.types";
+import { ROLE_CONFIG } from "@/lib/constants";
+import { ApiError } from "@/lib/api";
+import type { UserRole } from "@/types/user.types";
 
-interface UserFormDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (data: { name: string; email: string; role: UserRole; phone?: string; zone?: QuibdoZone }) => void;
-  initial?: Partial<User>;
-  mode?: "create" | "edit";
-}
+const ASSIGNABLE: UserRole[] = ["operador", "supervisor", "super_admin", "ciudadano"];
 
-export function UserFormDialog({ open, onClose, onSubmit, initial, mode = "create" }: UserFormDialogProps) {
-  const [name,  setName]  = useState(initial?.name  ?? "");
-  const [email, setEmail] = useState(initial?.email ?? "");
-  const [role,  setRole]  = useState<UserRole>(initial?.role ?? "partner");
-  const [phone, setPhone] = useState(initial?.phone ?? "");
-  const [zone,  setZone]  = useState<QuibdoZone | "">(initial?.zone ?? "");
+/** Crea cuentas del sistema. Las unidades se crean junto con su vehículo. */
+export function UserFormDialog({ onSaved }: { onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("operador");
+  const [saving, setSaving] = useState(false);
 
-  const valid = name.trim() && email.trim() && email.includes("@");
-
-  const handleSubmit = () => {
-    if (!valid) return;
-    onSubmit({ name: name.trim(), email: email.trim(), role, phone: phone || undefined, zone: (zone || undefined) as QuibdoZone | undefined });
-    onClose();
-  };
+  async function submit() {
+    setSaving(true);
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, role }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new ApiError(response.status, body.error ?? "No se pudo crear el usuario");
+      }
+      toast.success("Usuario creado");
+      setOpen(false);
+      setName(""); setEmail(""); setPassword("");
+      onSaved();
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "No se pudo crear el usuario");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border sm:max-w-md">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={<Button size="sm">Nuevo usuario</Button>}
+      />
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Nuevo usuario" : "Editar usuario"}</DialogTitle>
+          <DialogTitle>Crear usuario</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="name" className="text-xs">Nombre completo</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Carlos Mosquera" className="bg-background border-border" />
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="user-name">Nombre completo</Label>
+            <Input id="user-name" value={name} onChange={(event) => setName(event.target.value)} />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs">Correo electrónico</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@nass.gov.co" className="bg-background border-border" />
+          <div className="space-y-2">
+            <Label htmlFor="user-email">Correo</Label>
+            <Input id="user-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Rol</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
-                <SelectTrigger className="bg-background border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="lider">Líder</SelectItem>
-                  <SelectItem value="partner">Partner</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="space-y-2">
+            <Label htmlFor="user-password">Contraseña temporal</Label>
+            <Input
+              id="user-password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Mínimo 8 caracteres"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Rol</Label>
+            <div className="flex flex-wrap gap-2">
+              {ASSIGNABLE.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setRole(option)}
+                  className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                    role === option
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border bg-card text-muted-foreground"
+                  }`}
+                >
+                  {ROLE_CONFIG[option].label}
+                </button>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Zona (opcional)</Label>
-              <Select value={zone} onValueChange={(v) => setZone(v as QuibdoZone)}>
-                <SelectTrigger className="bg-background border-border">
-                  <SelectValue placeholder="Sin zona" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ZONE_LIST.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="phone" className="text-xs">Teléfono (opcional)</Label>
-            <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+57 310 555 0000" className="bg-background border-border" />
           </div>
         </div>
+
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button disabled={!valid} onClick={handleSubmit}>
-            {mode === "create" ? "Crear usuario" : "Guardar cambios"}
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving || !name || !email || password.length < 8}>
+            {saving ? "Creando…" : "Crear usuario"}
           </Button>
         </DialogFooter>
       </DialogContent>

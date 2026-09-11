@@ -1,306 +1,222 @@
-# NASS Admin Panel
+# NASS Ciudadano
 
-**National Advanced Security System** — Panel de administración web para el monitoreo y gestión de emergencias ciudadanas en Quibdó, Chocó, Colombia.
+**Sistema de Atención y Seguridad Ciudadana** — plataforma de respuesta a emergencias para Quibdó, Chocó.
 
-Diseñado para uso operacional en alta presión: claridad visual extrema, modo oscuro permanente, datos en tiempo real (mock) y flujo de estado inmutable por incidencia.
+> La ciudadanía reporta. La tecnología conecta. El territorio responde.
+
+Aplicación funcional con backend, autenticación, tiempo real, mapas y despacho. El flujo completo
+**ciudadano → pánico → C4 → despacho → GPS → chat → atención → cierre → KPI** funciona de punta a punta.
 
 ---
 
-## Capturas de pantalla
+## Arranque rápido
 
-| Dashboard | Mapa en tiempo real |
-|---|---|
-| KPIs + tendencia 7 días + alertas críticas | Leaflet dark tiles + marcadores por estado |
+```bash
+npm install
+npm run dev          # http://localhost:3000
+```
 
-| Analítica | Gestión de Incidencias |
-|---|---|
-| 9 secciones · heatmap 7×24 · donut · radial · funnel | Tabla filtrable + línea de tiempo por incidencia |
+Para la demostración conviene el modo producción (más rápido y estable):
+
+```bash
+npm run build && npm start
+```
+
+**Desde el celular:** conecta el teléfono a la misma red Wi-Fi del portátil y abre
+`http://<IP-del-portátil>:3000`. La IP aparece en la consola al arrancar (línea `Network`).
+
+> La geolocalización del navegador exige HTTPS salvo en `localhost`. Para usar el GPS real del
+> celular en una red local, expón el puerto con un túnel HTTPS (`ngrok http 3000` o similar).
+> Sin eso, el botón de pánico igual funciona: usa la última ubicación conocida o la del simulador.
+
+---
+
+## Cuentas de demostración
+
+Contraseña para todas: **`nass2026`**
+
+| Rol | Correo | Entra a |
+|---|---|---|
+| Ciudadano | `ciudadano@demo.nass.co` | `/ciudadano` — botón de pánico |
+| Operador C4 | `operador@nass.gov.co` | `/dashboard` — centro de despacho |
+| Supervisor | `supervisor@nass.gov.co` | `/dashboard` |
+| Super Admin | `admin@nass.gov.co` | `/dashboard` + auditoría y simulador |
+| Unidad | `pol-031@nass.gov.co` … `seg-022@nass.gov.co` | `/unidad` — panel en calle |
+
+La pantalla de acceso tiene botones de entrada directa para los cuatro perfiles principales.
+
+---
+
+## Guion de demostración (5 minutos)
+
+1. **Celular** — entra como ciudadano. Autoriza la ubicación. Pulsa **SOS**, confirma, cuenta regresiva.
+2. **Portátil** — el centro de despacho suena, muestra la alerta y la pinta en el mapa.
+   *(Toca la pantalla del portátil una vez antes de empezar: el navegador exige un gesto para permitir audio.)*
+3. **Operador** — abre el incidente desde la cola, pulsa **Tomar caso**.
+4. **Operador** — despacha la unidad marcada como **Protocolo** (la institución que corresponde al tipo).
+5. **Mapa** — la unidad acepta a los 6 segundos y empieza a moverse en tiempo real hacia el lugar.
+6. **Chat** — escribe desde el celular; el mensaje aparece en el panel del operador y al revés.
+7. **Llegada** — al llegar, el incidente pasa solo a **EN EL SITIO**.
+8. **Cierre** — el operador marca **En atención → Resuelta → Cerrar incidente**.
+9. **Analítica** — el KPI de tiempo de respuesta y el mapa de calor ya incluyen el caso.
+10. **Auditoría** — cada paso quedó registrado con actor, hora, estado anterior y nuevo.
+
+**Sin celular a mano:** el panel **Simulador** (solo super admin) genera incidentes en cualquier punto
+del mapa con el tipo y la prioridad que elijas. Es el plan B si falla la red o el GPS.
+
+---
+
+## Las cuatro aplicaciones
+
+### 1. App ciudadana — `/ciudadano`
+Diseñada para actuar en segundos, no para explorar menús.
+
+- Botón de pánico con doble confirmación y cuenta regresiva cancelable de 5 s
+- Captura de GPS con precisión y compartición periódica mientras la emergencia está activa
+- Estado de la atención paso a paso y datos de la unidad asignada
+- Chat con el centro de atención e interfaz de llamada (ver *VOIP* más abajo)
+- Reporte de incidentes no urgentes con 13 categorías
+- Historial de alertas propias
+
+### 2. Centro de despacho C4 — `/dashboard`, `/mapa`, `/incidencias`
+- Cola de atención ordenada por prioridad y antigüedad
+- Mapa Leaflet con incidentes, unidades por institución y línea de despacho
+- Alerta sonora sintetizada y notificación al entrar una emergencia
+- Panel de despacho: unidades candidatas ordenadas por **protocolo + cercanía**, con distancia real
+- Control completo de la máquina de estados, chat y trazabilidad por incidente
+- Barra de flota: disponibilidad por institución en todo momento
+
+### 3. Panel de unidad — `/unidad`
+- Disponibilidad, compartición del GPS del dispositivo
+- Recepción del despacho, aceptación, navegación al lugar
+- Reporte de llegada, inicio de atención y finalización del servicio
+- Chat con el centro de despacho
+
+### 4. Administración — `/usuarios`, `/analitica`, `/auditoria`, `/simulador`
+- Gestión de usuarios con los 5 roles del sistema
+- Analítica: 10 KPIs, serie diaria, horas pico, mapa de calor geográfico y semanal, zonas, categorías
+- Auditoría inmutable con actor, acción, recurso, metadatos e IP
+- Simulador de emergencias para demostraciones
+
+---
+
+## Arquitectura
+
+```
+Navegador (ciudadano · unidad · C4)
+        │  fetch /api/*            ← REST
+        │  EventSource /api/events ← tiempo real (SSE)
+        ▼
+Next.js App Router  ·  route handlers en runtime Node
+        ▼
+src/server/
+  db.ts          Almacén y operaciones de dominio  ← ÚNICA frontera con la persistencia
+  auth.ts        scrypt + sesión firmada (HMAC) en cookie httpOnly
+  bus.ts         Bus de eventos que alimenta el canal SSE
+  geo.ts         Haversine, rumbo, desplazamiento, zona más cercana
+  analytics.ts   KPIs, series y agregación del mapa de calor
+  simulator.ts   GPS de unidades sin hardware real
+  seed.ts        Datos de demostración deterministas
+```
+
+**Decisiones tomadas y por qué:**
+
+- **SSE en lugar de WebSockets.** El contrato de eventos es el del documento técnico
+  (`incident.created`, `unit.location.updated`, `message.created`…). SSE atraviesa proxies sin
+  configuración, reconecta solo y no añade dependencias. Migrar a Socket.IO no cambia el frontend.
+- **Almacén en memoria en lugar de PostgreSQL.** Toda la persistencia está detrás de `src/server/db.ts`.
+  El modelo de datos ya es relacional (usuarios, unidades, incidentes, historial de estados,
+  mensajes, auditoría, con identificadores propios y relaciones explícitas). Cambiar a PostgreSQL es
+  reimplementar ese módulo; las rutas y el frontend quedan igual.
+  **Los datos se reinician al reiniciar el servidor** — es lo correcto para demostrar, no para producción.
+- **Sin dependencias de autenticación externas.** scrypt y HMAC vienen en Node. Menos superficie, menos
+  cosas que fallen en una demostración.
+
+---
+
+## API
+
+Todas las rutas bajo `/api`. La sesión viaja en cookie `httpOnly`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| POST | `/auth/register` | Registro público (solo crea ciudadanos) |
+| POST | `/auth/login` | Inicio de sesión |
+| POST | `/auth/logout` | Cierre de sesión |
+| GET | `/auth/me` | Sesión actual y unidad asociada |
+| GET | `/incidents` | Lista filtrada por rol (ver *Privacidad*) |
+| POST | `/incidents` | Crea alerta o reporte |
+| GET | `/incidents/:id` | Detalle, unidad, mensajes y unidades candidatas |
+| PATCH | `/incidents/:id/status` | Cambio de estado validado contra la máquina de estados |
+| POST | `/incidents/:id/dispatch` | Despacha una unidad |
+| GET/POST | `/incidents/:id/messages` | Chat del incidente |
+| POST | `/incidents/:id/location` | Ubicación del ciudadano durante la emergencia |
+| GET | `/units` | Flota con posición y disponibilidad |
+| POST | `/units/location` | Ping de GPS de una unidad |
+| PATCH | `/units/:id/status` | Disponibilidad de la unidad |
+| POST | `/units/:id/accept` | La unidad acepta el servicio |
+| GET | `/analytics/summary` | KPIs y series (`?days=`) |
+| GET | `/analytics/heatmap` | Celdas del mapa de calor |
+| GET | `/audit` | Auditoría (super admin y supervisor) |
+| GET/POST | `/users` | Usuarios del sistema |
+| GET | `/events` | Canal de eventos en tiempo real (SSE) |
+
+---
+
+## Máquina de estados
+
+```
+nueva → recibida → en_validación → asignada → en_camino → en_sitio → atendiendo → resuelta → cerrada
+   └──────────────────────────────── cancelada ────────────────────────────────┘
+```
+
+Las transiciones se validan en el servidor. Cada cambio genera un evento inmutable en la línea de
+tiempo del incidente y una entrada de auditoría con actor, hora, estado anterior y nuevo.
+
+---
+
+## Seguridad y privacidad
+
+- Contraseñas con **scrypt** y sal por usuario. Nunca en texto plano, nunca en el repositorio.
+- Sesión firmada con **HMAC-SHA256** en cookie `httpOnly`, `sameSite=lax`, `secure` en producción.
+- **RBAC** en cada ruta: el centro de despacho está cerrado en el servidor, no solo en la interfaz.
+- **Control de acceso por incidente:** el ciudadano solo ve los suyos, la unidad solo el que tiene
+  asignado, el C4 ve el territorio.
+- Validación y límites de tamaño en toda entrada; **rate limiting** en acceso, registro y creación de alertas.
+- La ubicación del ciudadano solo se registra mientras la emergencia está activa; al cerrarla, el
+  servidor rechaza nuevas posiciones.
+- El mapa de calor agrega en celdas de ~165 m: nunca expone la posición exacta de una persona.
+
+Configura `NASS_AUTH_SECRET` antes de desplegar (ver `.env.example`).
+
+---
+
+## Puntos de integración pendientes
+
+Están implementados como interfaz y arquitectura, con el punto de conexión marcado en el código.
+No hay integraciones falsas presentadas como reales.
+
+| Módulo | Estado | Dónde |
+|---|---|---|
+| **VOIP / WebRTC** | Interfaz y máquina de estados de llamada (CALLING → RINGING → CONNECTED → ENDED/FAILED). Falta señalización y STUN/TURN. **No transmite audio.** | `src/components/shared/VoiceCallButton.tsx` |
+| **GPS real de unidades** | `POST /api/units/location` acepta posiciones reales. El simulador mueve las unidades que no tienen equipo. | `src/server/simulator.ts` |
+| **Base de datos** | Modelo relacional completo en memoria. | `src/server/db.ts` |
+| **Evidencia multimedia** | Modelo con hash para cadena de custodia definido; falta almacenamiento y carga. | `src/types/incident.types.ts` |
+| **Notificaciones push / SMS** | Alerta sonora y notificación en pantalla funcionando; falta el proveedor externo. | `src/lib/alertSound.ts` |
+
+---
+
+## Notas de operación
+
+- **Audio:** el navegador bloquea el sonido hasta que hay un gesto del usuario. Un aviso lo recuerda;
+  basta tocar la pantalla una vez al abrir el centro de despacho.
+- **Mapas:** las teselas vienen de CARTO sobre OpenStreetMap. Requiere conexión a internet.
+- **Velocidad de las unidades simuladas:** ajustable con `NASS_SIM_SPEED_KMH` (por defecto 55 km/h).
+  Súbela para demostraciones más cortas.
 
 ---
 
 ## Stack
 
-| Capa | Tecnología | Versión |
-|---|---|---|
-| Framework | Next.js (App Router) | 16.x |
-| Lenguaje | TypeScript strict | 5.x |
-| Estilos | Tailwind CSS v4 + CSS variables | 4.x |
-| Estado cliente | Zustand | 5.x |
-| Cache / fetching | TanStack Query | 5.x |
-| Mapas | React-Leaflet + CartoDB DarkMatter | 5.x |
-| Gráficos | Recharts | 3.x |
-| UI primitivos | shadcn/ui (Base UI) | — |
-| Iconos | Lucide React | — |
-| Notificaciones | Sonner | 2.x |
-| Runtime | React 19 | 19.x |
-
----
-
-## Paneles
-
-### 1. Dashboard General `/dashboard`
-Vista de comando operacional con KPIs en tiempo real.
-
-- **Incidencias activas** — total fuera de estado cerrada/cancelada
-- **Reportadas hoy** — filtradas por fecha local
-- **Agentes disponibles** — ratio sobre total de agentes
-- **Tiempo promedio de respuesta** — valor mock estático
-- Gráfico de tendencia 7 días (AreaChart)
-- Distribución por estado (BarChart agrupado)
-- Lista de alertas críticas activas (severidad ≥ 4)
-
-### 2. Mapa en Tiempo Real `/mapa`
-Leaflet cargado exclusivamente en cliente (`dynamic({ ssr: false })`).
-
-- Tiles oscuros: CartoDB DarkMatter
-- Centro: `lat 5.6919, lng -76.6583` (Quibdó)
-- **Marcadores de incidencia** — círculo SVG coloreado por estado; `atendiendo` tiene anillo `animate-ping`
-- **Marcadores de agente** — pin coloreado por rol
-- Filtros de estado en barra superior (chips toggle)
-- **Panel de detalle** — Sheet deslizante desde la derecha al seleccionar un marcador
-- Z-index corregido para aparecer sobre los controles de Leaflet (z-1001 / z-1002)
-
-### 3. Gestión de Incidencias `/incidencias`
-Tabla completa con filtros combinables.
-
-- Filtros: estado, severidad, zona, rango de fechas
-- Columnas: ID · Título · Categoría · Estado · Severidad · Zona · Fecha
-- Ordenación por columna, paginación
-- Vista de detalle `/incidencias/[id]`:
-  - Stepper de 5 pasos mostrando la máquina de estados
-  - Metadata completa (categoría, zona, dirección, coordenadas)
-  - **Línea de tiempo inmutable** — lista append-only de `TimelineEvent`
-
-### 4. Gestión de Usuarios `/usuarios`
-CRUD completo en memoria.
-
-- Tabla con `RoleBadge`, toggle de estado activo/suspendido
-- Filtro por rol y estado
-- **Dialog de creación/edición** — nombre, email, rol, zona, estado
-- Mutaciones en Zustand store → invalidación de cache TanStack Query → UI reactiva sin recarga
-
-### 5. Analítica `/analitica`
-Página de scroll único con 9 secciones. Sin tabs.
-
-1. **Header** — toggle de rango 7D / 14D / 30D
-2. **KPI cards con sparklines** — MetricCard + mini AreaChart embebido + flecha de tendencia
-3. **Serie temporal multi-línea** — nuevas / cerradas / críticas (AreaChart apilado)
-4. **Categoría + Severidad** — PieChart donut con leyenda inline · RadialBarChart con barras de progreso
-5. **Ranking por zona** — barras de progreso con gradiente y porcentaje
-6. **Horas pico + Tiempo de respuesta** — BarChart 0–23h con colores por intensidad · ComposedChart actual vs anterior
-7. **Heatmap 7×24** — grid CSS con codificación tri-color (azul/naranja/rojo) y leyenda
-8. **Distribución de estados + Funnel** — barras de porcentaje · visualización de embudo reportadas→cerradas
-9. **Tendencia semanal por categoría** — LineChart multi-serie (Robo, Agresión, Hurto, Otro)
-
-### 6. Historial de Auditoría `/auditoria`
-Registro de solo lectura, inmutable.
-
-- 50 entradas mock ordenadas descendente por timestamp
-- Búsqueda por actor, recurso o tipo de acción
-- Columnas: Timestamp · Actor (nombre + rol) · Acción · Recurso · IP
-- Sin controles de mutación — icono de candado en header
-
----
-
-## Arquitectura de datos
-
-```
-mocks/*.mock.ts          ← Fuente de datos estáticos (30 incidencias, 15 usuarios, 10 agentes, 50 auditorías)
-        ↓
-store/*.store.ts         ← Zustand: estado mutable en memoria, funciones de mutación
-        ↓
-hooks/use*.ts            ← TanStack Query: queryFn lee el store, staleTime 30s
-        ↓
-components/**            ← Consumen los hooks, renders reactivos
-```
-
-**Patrón de mutación:**
-```typescript
-// 1. Mutación en el store
-useIncidentsStore.getState().updateStatus(id, 'cerrada')
-
-// 2. Invalidar cache → re-fetch desde store actualizado
-queryClient.invalidateQueries({ queryKey: ['incidents'] })
-
-// 3. UI actualiza sin recarga de página
-```
-
-Cuando exista el backend Laravel, solo cambia `queryFn` — el resto de la arquitectura permanece igual.
-
----
-
-## Máquina de estados — Incidencias
-
-```
-nueva ──→ aceptada ──→ en_camino ──→ atendiendo ──→ cerrada
-  └──────────────────────────────────────────────→ cancelada
-```
-
-| Estado | Color |
-|---|---|
-| `nueva` | Gris |
-| `aceptada` | Azul |
-| `en_camino` | Amarillo |
-| `atendiendo` | Naranja (+ ping animado en mapa) |
-| `cerrada` | Verde |
-| `cancelada` | Rojo |
-
-Cada transición genera un `TimelineEvent` en la línea de tiempo de la incidencia. El historial es **append-only** — nunca se modifica ni elimina.
-
----
-
-## Tokens de diseño
-
-Definidos en `src/app/globals.css` como variables CSS, expuestos en Tailwind vía `@theme inline`. Modo oscuro permanente (clase `dark` en `<html>`).
-
-```css
-/* Estados */
---status-nueva:      oklch(0.55 0 0)      /* gris    */
---status-aceptada:   oklch(0.60 0.18 250) /* azul    */
---status-en-camino:  oklch(0.75 0.18 85)  /* amarillo*/
---status-atendiendo: oklch(0.70 0.18 45)  /* naranja */
---status-cerrada:    oklch(0.65 0.18 145) /* verde   */
---status-cancelada:  oklch(0.55 0.22 25)  /* rojo    */
-
-/* Severidad (1=baja → 5=extrema) */
---severity-1: oklch(0.65 0.18 145)  /* verde   */
---severity-2: oklch(0.75 0.18 85)   /* amarillo*/
---severity-3: oklch(0.70 0.18 45)   /* naranja */
---severity-4: oklch(0.55 0.22 25)   /* rojo    */
---severity-5: oklch(0.45 0.22 10)   /* carmesí */
-
-/* Roles */
---role-admin:   oklch(0.60 0.20 290) /* púrpura */
---role-lider:   oklch(0.60 0.18 250) /* azul    */
---role-partner: oklch(0.55 0 0)      /* neutro  */
-```
-
----
-
-## Zonas geográficas — Quibdó
-
-| Zona | Lat | Lng |
-|---|---|---|
-| Centro | 5.6942 | -76.6601 |
-| Cristo Rey | 5.6870 | -76.6520 |
-| Huapango | 5.7010 | -76.6480 |
-| San Vicente | 5.6880 | -76.6700 |
-| Kennedy | 5.6960 | -76.6640 |
-| La Yesca | 5.6830 | -76.6560 |
-| Chambacú | 5.7050 | -76.6550 |
-
----
-
-## Estructura del proyecto
-
-```
-src/
-├── app/
-│   ├── globals.css              # Tokens de diseño (status, severity, role, surface)
-│   ├── layout.tsx               # <html lang="es" class="dark">
-│   ├── providers.tsx            # QueryClientProvider + Sonner
-│   └── (admin)/
-│       ├── layout.tsx           # AdminShell: Sidebar + TopBar + outlet
-│       ├── dashboard/page.tsx
-│       ├── mapa/page.tsx
-│       ├── incidencias/
-│       │   ├── page.tsx
-│       │   └── [id]/page.tsx
-│       ├── usuarios/page.tsx
-│       ├── analitica/page.tsx
-│       └── auditoria/page.tsx
-│
-├── components/
-│   ├── layout/                  # AdminShell · Sidebar · TopBar
-│   ├── shared/                  # KpiCard · StatusBadge · SeverityDot · PageHeader · EmptyState
-│   ├── dashboard/               # CriticalAlertsList · IncidentsTrendChart · IncidentsByStatusChart
-│   ├── map/                     # RealtimeMap · IncidentDetailPanel · MapFiltersBar
-│   ├── incidencias/             # IncidentTable · IncidentFilters · IncidentStatusFlow · IncidentTimeline
-│   ├── usuarios/                # UserFormDialog · RoleBadge
-│   └── ui/                      # shadcn/ui — nunca editados a mano
-│
-├── types/                       # incident · user · agent · audit
-├── mocks/                       # incidents (30) · users (15) · agents (10) · audit (50)
-├── hooks/                       # useIncidents · useUsers · useAgents · useAuditLog
-├── store/                       # ui.store · incidents.store · users.store
-└── lib/
-    ├── constants.ts             # STATUS_CONFIG · SEVERITY_CONFIG · ZONE_LIST · QUIBDO_CENTER
-    ├── date.ts                  # formatDate · formatDateTime (locale es-CO)
-    └── utils.ts                 # cn() = clsx + tailwind-merge
-```
-
----
-
-## Instalación y desarrollo
-
-**Requisitos:** Node.js 20+, npm 10+
-
-```bash
-# Clonar
-git clone git@github.com:Bello2005/NASS.git
-cd NASS/nass-admin
-
-# Instalar dependencias
-npm install
-
-# Servidor de desarrollo
-npm run dev
-```
-
-Abre [http://localhost:3000](http://localhost:3000) — redirige automáticamente a `/dashboard`.
-
-```bash
-# Build de producción
-npm run build
-
-# Verificar tipos
-npx tsc --noEmit
-```
-
----
-
-## Notas técnicas importantes
-
-**Leaflet y SSR**
-Leaflet accede a `window` en tiempo de importación. El componente `RealtimeMap` se carga exclusivamente en cliente:
-```typescript
-const RealtimeMap = dynamic(
-  () => import("@/components/map/RealtimeMap").then(m => ({ default: m.RealtimeMap })),
-  { ssr: false }
-)
-```
-
-**Tailwind v4**
-Configuración CSS-first. Los colores personalizados se definen en `globals.css` vía `@theme inline`, no en `tailwind.config.ts`.
-
-**@base-ui/react**
-Este proyecto usa Base UI en lugar de Radix UI como capa primitiva de shadcn. No existe la prop `asChild` — los triggers reciben `className` directamente.
-
-**Z-index y Leaflet**
-Los controles de Leaflet alcanzan z-index 1000. El Sheet de detalle usa `z-[1001]` (overlay) y `z-[1002]` (panel) para aparecer encima del mapa.
-
----
-
-## Roadmap
-
-- [ ] Integración con API Laravel (reemplazar `queryFn` mock → fetch real)
-- [ ] Autenticación con roles (admin / líder / partner)
-- [ ] WebSocket para actualizaciones en tiempo real
-- [ ] Exportación de incidencias a SIEDCO
-- [ ] Notificaciones push por incidencias críticas
-- [ ] PWA para uso offline parcial
-
----
-
-## Contexto del proyecto
-
-NASS es una plataforma de seguridad ciudadana desarrollada para Quibdó, capital del departamento de Chocó, Colombia (~120.000 habitantes). Este panel web es usado por administradores de sede central para:
-
-- Monitorear emergencias entrantes en tiempo real
-- Coordinar la asignación de agentes de campo
-- Analizar patrones de incidencia por zona, hora y categoría
-- Mantener un registro de auditoría inmutable de todas las acciones del sistema
-
----
-
-*Construido con Next.js 15 · Tailwind CSS v4 · Recharts · React-Leaflet*
+Next.js 16 (App Router) · React 19 · TypeScript estricto · Tailwind CSS v4 · shadcn/ui ·
+TanStack Query · Zustand · Leaflet + OpenStreetMap/CARTO · Recharts · Sonner

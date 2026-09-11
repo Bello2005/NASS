@@ -2,30 +2,24 @@ import { cn } from "@/lib/utils";
 import { STATUS_CONFIG } from "@/lib/constants";
 import type { IncidentStatus } from "@/types/incident.types";
 
-const variantClasses: Record<IncidentStatus, string> = {
-  nueva:      "bg-zinc-800 text-zinc-300 border-zinc-700",
-  aceptada:   "bg-blue-950 text-blue-300 border-blue-800",
-  en_camino:  "bg-yellow-950 text-yellow-300 border-yellow-800",
-  atendiendo: "bg-orange-950 text-orange-300 border-orange-800",
-  cerrada:    "bg-green-950 text-green-300 border-green-800",
-  cancelada:  "bg-red-950 text-red-300 border-red-800",
-};
-
 interface StatusBadgeProps {
   status: IncidentStatus;
   className?: string;
 }
 
+/** El color viene del token de estado, así un estado nuevo no requiere tocar este archivo. */
 export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const config = STATUS_CONFIG[status];
   return (
     <span
-      className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
-        variantClasses[status],
-        className
-      )}
+      className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium", className)}
+      style={{
+        background: `${config.color}1f`,
+        color: config.color,
+        borderColor: `${config.color}55`,
+      }}
     >
-      {STATUS_CONFIG[status].label}
+      {config.label}
     </span>
   );
 }
