@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { IncidentChat } from "@/components/shared/IncidentChat";
 import { api, ApiError } from "@/lib/api";
 import { AVAILABILITY_CONFIG, CATEGORY_LABELS, INSTITUTION_CONFIG, PRIORITY_CONFIG } from "@/lib/constants";
@@ -24,6 +25,7 @@ export default function UnidadPage() {
   const geo = useGeolocation({ watch: true });
   const [sharingGps, setSharingGps] = useState(false);
   const [working, setWorking] = useState(false);
+  const [note, setNote] = useState("");
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/entrar");
@@ -89,6 +91,7 @@ export default function UnidadPage() {
     try {
       await action();
       toast.success(label);
+      setNote("");
       refresh();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "No se pudo completar la acción");
@@ -243,6 +246,14 @@ export default function UnidadPage() {
             Navegar al lugar
           </a>
 
+          <Input
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="Novedad para el centro de despacho (opcional)"
+            maxLength={500}
+            aria-label="Novedad"
+          />
+
           <div className="grid grid-cols-2 gap-2">
             {myUnit.availability === "despachada" && (
               <Button
@@ -257,7 +268,7 @@ export default function UnidadPage() {
               <Button
                 className="col-span-2"
                 disabled={working}
-                onClick={() => act("Llegada reportada", () => api.setIncidentStatus(service.id, "en_sitio", "Unidad en el lugar"))}
+                onClick={() => act("Llegada reportada", () => api.setIncidentStatus(service.id, "en_sitio", note.trim() || "Unidad en el lugar"))}
               >
                 Reportar llegada
               </Button>
@@ -266,7 +277,7 @@ export default function UnidadPage() {
               <Button
                 className="col-span-2"
                 disabled={working}
-                onClick={() => act("Atención iniciada", () => api.setIncidentStatus(service.id, "atendiendo"))}
+                onClick={() => act("Atención iniciada", () => api.setIncidentStatus(service.id, "atendiendo", note.trim() || undefined))}
               >
                 Iniciar atención
               </Button>
@@ -275,7 +286,7 @@ export default function UnidadPage() {
               <Button
                 className="col-span-2"
                 disabled={working}
-                onClick={() => act("Servicio finalizado", () => api.setIncidentStatus(service.id, "resuelta", "Atención finalizada por la unidad"))}
+                onClick={() => act("Servicio finalizado", () => api.setIncidentStatus(service.id, "resuelta", note.trim() || "Atención finalizada por la unidad"))}
               >
                 Finalizar servicio
               </Button>

@@ -9,7 +9,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SeverityDot } from "@/components/shared/SeverityDot";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, PRIORITY_CONFIG } from "@/lib/constants";
+import { useUnits } from "@/hooks/useUnits";
 import { formatDateTime } from "@/lib/date";
 import { AlertTriangle } from "lucide-react";
 import type { Incident } from "@/types/incident.types";
@@ -23,6 +24,7 @@ interface IncidentTableProps {
 
 export function IncidentTable({ incidents, isLoading }: IncidentTableProps) {
   const [page, setPage] = useState(1);
+  const { data: units } = useUnits();
   const totalPages = Math.ceil(incidents.length / PAGE_SIZE);
   const paged = incidents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -49,7 +51,9 @@ export function IncidentTable({ incidents, isLoading }: IncidentTableProps) {
               <TableHead className="text-xs text-muted-foreground font-medium">Título</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-24">Tipo</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-10 text-center">G.</TableHead>
+              <TableHead className="text-xs text-muted-foreground font-medium w-24">Prioridad</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-28">Estado</TableHead>
+              <TableHead className="text-xs text-muted-foreground font-medium w-24">Unidad</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-28">Zona</TableHead>
               <TableHead className="text-xs text-muted-foreground font-medium w-36">Reportada</TableHead>
               <TableHead className="w-8" />
@@ -58,7 +62,7 @@ export function IncidentTable({ incidents, isLoading }: IncidentTableProps) {
           <TableBody>
             {paged.map((inc) => (
               <TableRow key={inc.id} className="border-border hover:bg-accent/30 cursor-pointer">
-                <TableCell className="font-mono text-xs text-muted-foreground">{inc.id}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{inc.code}</TableCell>
                 <TableCell>
                   <span className="text-sm text-foreground font-medium line-clamp-1">{inc.title}</span>
                 </TableCell>
@@ -66,7 +70,18 @@ export function IncidentTable({ incidents, isLoading }: IncidentTableProps) {
                 <TableCell className="text-center">
                   <SeverityDot severity={inc.severity} />
                 </TableCell>
+                <TableCell>
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: PRIORITY_CONFIG[inc.priority].color }}
+                  >
+                    {PRIORITY_CONFIG[inc.priority].label}
+                  </span>
+                </TableCell>
                 <TableCell><StatusBadge status={inc.status} /></TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {(units ?? []).find((unit) => unit.id === inc.assignedUnitId)?.callsign ?? "—"}
+                </TableCell>
                 <TableCell className="text-xs text-muted-foreground">{inc.zone}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{formatDateTime(inc.reportedAt)}</TableCell>
                 <TableCell>

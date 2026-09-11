@@ -357,6 +357,72 @@ export function changeIncidentStatus(params: {
   return { incident };
 }
 
+/**
+ * Reclasifica un incidente. El ciudadano reporta lo que puede en segundos;
+ * el operador corrige el tipo y la prioridad con la información del caso.
+ */
+export function reclassifyIncident(params: {
+  incidentId: string;
+  actor: Session;
+  category?: IncidentCategory;
+  priority?: IncidentPriority;
+  note?: string;
+}): { incident?: Incident; error?: string } {
+  const incident = findIncident(params.incidentId);
+  if (!incident) return { error: "Incidente no encontrado" };
+  if (!params.category && !params.priority) return { incident };
+
+  const previous = { category: incident.category, priority: incident.priority };
+  const now = new Date().toISOString();
+
+  if (params.category) incident.category = params.category;
+  if (params.priority) {
+    incident.priority = params.priority;
+    incident.severity = PRIORITY_SEVERITY[params.priority];
+  }
+  incident.updatedAt = now;
+
+  // La reclasificación queda en la línea de tiempo sin alterar el estado del caso.
+  incident.timeline.push({
+    id: `TL-${Date.now()}`,
+    timestamp: now,
+    status: incident.status,
+    actorId: params.actor.userId,
+    actorName: params.actor.name,
+    note: params.note ?? buildReclassificationNote(previous, incident),
+  });
+
+  recordAudit({
+    actor: params.actor,
+    action: "incident.reclassified",
+    resourceType: "incident",
+    resourceId: incident.code,
+    metadata: {
+      tipoAnterior: previous.category,
+      tipoNuevo: incident.category,
+      prioridadAnterior: previous.priority,
+      prioridadNueva: incident.priority,
+    },
+  });
+
+  emit({ type: "incident.updated", incident });
+  return { incident };
+}
+
+function buildReclassificationNote(
+  previous: { category: IncidentCategory; priority: IncidentPriority },
+  incident: Incident,
+): string {
+  const parts: string[] = [];
+  if (previous.category !== incident.category) {
+    parts.push(`tipo ${previous.category} → ${incident.category}`);
+  }
+  if (previous.priority !== incident.priority) {
+    parts.push(`prioridad ${previous.priority} → ${incident.priority}`);
+  }
+  return `Reclasificado: ${parts.join(" · ")}`;
+}
+
 export function dispatchUnit(params: {
   incidentId: string;
   unitId: string;

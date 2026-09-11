@@ -3,21 +3,30 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { IncidentChat } from "@/components/shared/IncidentChat";
 import { VoiceCallButton } from "@/components/shared/VoiceCallButton";
-import { useIncident, useDispatchUnit, useUpdateIncidentStatus } from "@/hooks/useIncidents";
+import {
+  useDispatchUnit,
+  useIncident,
+  useRefreshOperations,
+  useUpdateIncidentStatus,
+} from "@/hooks/useIncidents";
 import { useSession } from "@/hooks/useSession";
 import { useUIStore } from "@/store/ui.store";
 import {
   AVAILABILITY_CONFIG,
   CATEGORY_LABELS,
+  CITIZEN_CATEGORIES,
   INSTITUTION_CONFIG,
   PRIORITY_CONFIG,
+  PRIORITY_LIST,
 } from "@/lib/constants";
+import { api, ApiError } from "@/lib/api";
 import { formatDateTime, formatTime } from "@/lib/date";
-import type { IncidentStatus } from "@/types/incident.types";
+import type { IncidentCategory, IncidentPriority, IncidentStatus } from "@/types/incident.types";
 
 const formatDistance = (meters: number) =>
   meters < 1000 ? `${meters} m` : `${(meters / 1000).toFixed(1)} km`;
@@ -39,7 +48,10 @@ export function DispatchPanel() {
   const detail = useIncident(selectedIncidentId ?? "");
   const dispatchUnit = useDispatchUnit();
   const updateStatus = useUpdateIncidentStatus();
+  const refreshOperations = useRefreshOperations();
   const [working, setWorking] = useState(false);
+  const [note, setNote] = useState("");
+  const [reclassifying, setReclassifying] = useState(false);
 
   const incident = detail.data?.incident;
   const unit = detail.data?.unit;
@@ -52,6 +64,20 @@ export function DispatchPanel() {
     } finally {
       setWorking(false);
     }
+  }
+
+  /** Corrige el tipo o la prioridad con la información que el operador ya tiene del caso. */
+  async function reclassify(changes: { category?: IncidentCategory; priority?: IncidentPriority }) {
+    if (!incident) return;
+    await run(async () => {
+      try {
+        await api.reclassify(incident.id, changes);
+        await detail.refetch();
+        refreshOperations();
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "No se pudo reclasificar");
+      }
+    });
   }
 
   return (
@@ -179,11 +205,85 @@ export function DispatchPanel() {
                 )}
               </section>
 
+              {/* Clasificación */}
+              <section className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Clasificación
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setReclassifying((open) => !open)}
+                    className="text-xs text-sky-400 transition hover:text-sky-300"
+                  >
+                    {reclassifying ? "Cerrar" : "Reclasificar"}
+                  </button>
+                </div>
+
+                {reclassifying && (
+                  <div className="space-y-3 rounded-xl border border-border bg-card p-3">
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] text-muted-foreground">Tipo de incidente</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {CITIZEN_CATEGORIES.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            disabled={working}
+                            onClick={() => reclassify({ category: option })}
+                            className={`rounded-full border px-2.5 py-1 text-[11px] transition disabled:opacity-50 ${
+                              incident.category === option
+                                ? "border-primary bg-primary/15 text-foreground"
+                                : "border-border text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            {CATEGORY_LABELS[option]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] text-muted-foreground">Prioridad</p>
+                      <div className="flex gap-1.5">
+                        {PRIORITY_LIST.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            disabled={working}
+                            onClick={() => reclassify({ priority: option })}
+                            className="flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition disabled:opacity-50"
+                            style={
+                              incident.priority === option
+                                ? {
+                                    borderColor: PRIORITY_CONFIG[option].color,
+                                    background: `${PRIORITY_CONFIG[option].color}22`,
+                                    color: PRIORITY_CONFIG[option].color,
+                                  }
+                                : { borderColor: "var(--border)", color: "var(--muted-foreground)" }
+                            }
+                          >
+                            {PRIORITY_CONFIG[option].label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+
               {/* Estados */}
               <section className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Cambiar estado
                 </h3>
+                <Input
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Novedad para la bitácora (opcional)"
+                  maxLength={500}
+                  aria-label="Novedad"
+                />
                 <div className="flex flex-wrap gap-2">
                   {OPERATOR_ACTIONS.filter((action) => action.status !== incident.status).map((action) => (
                     <Button
@@ -193,8 +293,11 @@ export function DispatchPanel() {
                       disabled={working}
                       onClick={() =>
                         run(async () => {
-                          const done = await updateStatus(incident.id, action.status);
-                          if (done) toast.success(`${incident.code} → ${action.label}`);
+                          const done = await updateStatus(incident.id, action.status, note.trim() || undefined);
+                          if (done) {
+                            toast.success(`${incident.code} → ${action.label}`);
+                            setNote("");
+                          }
                         })
                       }
                     >

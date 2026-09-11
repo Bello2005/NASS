@@ -3,6 +3,7 @@ import type { UserRole } from "./user.types";
 export type AuditAction =
   | "incident.created"
   | "incident.status_changed"
+  | "incident.reclassified"
   | "incident.assigned"
   | "incident.dispatched"
   | "incident.cancelled"

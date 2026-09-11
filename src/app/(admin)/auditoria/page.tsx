@@ -14,6 +14,7 @@ import type { AuditAction } from "@/types/audit.types";
 const ACTION_LABELS: Record<AuditAction, string> = {
   "incident.created":        "Incidente creado",
   "incident.status_changed": "Cambio de estado",
+  "incident.reclassified":   "Reclasificación",
   "incident.assigned":       "Unidad asignada",
   "incident.dispatched":     "Unidad despachada",
   "incident.cancelled":      "Incidente cancelado",
@@ -33,6 +34,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
 const ACTION_COLORS: Partial<Record<AuditAction, string>> = {
   "incident.created":   "text-red-400",
   "incident.dispatched":"text-sky-400",
+  "incident.reclassified": "text-amber-400",
   "incident.closed":    "text-emerald-400",
   "incident.cancelled": "text-muted-foreground",
   "session.login":      "text-muted-foreground",

@@ -70,6 +70,8 @@ export const api = {
   }) => post<{ incident: Incident }>("/incidents", input),
   setIncidentStatus: (id: string, status: IncidentStatus, note?: string) =>
     patch<{ incident: Incident }>(`/incidents/${id}/status`, { status, note }),
+  reclassify: (id: string, changes: { category?: string; priority?: string }) =>
+    patch<{ incident: Incident }>(`/incidents/${id}`, changes),
   dispatch: (id: string, unitId: string, note?: string) =>
     post<{ incident: Incident; unit: Unit }>(`/incidents/${id}/dispatch`, { unitId, note }),
   listMessages: (id: string) => request<{ messages: IncidentMessage[] }>(`/incidents/${id}/messages`),
