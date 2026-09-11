@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { QUIBDO_CENTER } from "@/lib/constants";
+import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, TILE_SUBDOMAINS, TILE_URL } from "@/lib/mapTiles";
 import type { HeatmapResponse } from "@/lib/api";
 
 /** Escala de intensidad: azul (baja) → naranja → rojo (alta concentración). */
@@ -51,9 +52,10 @@ export function GeoHeatmap({ data }: { data: HeatmapResponse }) {
       scrollWheelZoom={false}
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution="&copy; OpenStreetMap &copy; CARTO"
-        maxZoom={19}
+        url={TILE_URL}
+        attribution={TILE_ATTRIBUTION}
+        subdomains={TILE_SUBDOMAINS}
+        maxZoom={TILE_MAX_ZOOM}
       />
       <HeatLayer data={data} />
     </MapContainer>

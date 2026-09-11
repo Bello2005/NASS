@@ -13,8 +13,29 @@ Aplicación funcional con backend, autenticación, tiempo real, mapas y despacho
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+cp .env.example .env.local   # y rellena NEXT_PUBLIC_CARTO_API_KEY
+npm run dev                  # http://localhost:3000
 ```
+
+### Clave del mapa
+
+Los basemaps de CARTO **requieren clave**: sin ella las teselas se sirven con la marca de agua
+`API KEY REQUIRED`. Consíguela en [carto.com](https://carto.com/) y ponla en `.env.local`:
+
+```
+NEXT_PUBLIC_CARTO_API_KEY=tu_clave
+```
+
+> **Define la clave antes de compilar.** Las variables `NEXT_PUBLIC_*` se incrustan en el paquete
+> durante `npm run build`; si la añades después, el mapa seguirá saliendo con marca de agua hasta
+> que vuelvas a compilar. Si tras recompilar aún la ves, fuerza un refresco del navegador: tanto el
+> navegador como la CDN de CARTO cachean teselas.
+
+La clave viaja al navegador, como toda clave de mapa del lado del cliente. No se protege
+ocultándola sino **restringiéndola por dominio** desde el panel de CARTO.
+
+Toda la configuración de teselas vive en `src/lib/mapTiles.ts`. Cambiar de proveedor
+(MapTiler, Mapbox, teselas propias) es reescribir ese archivo: los cuatro mapas lo consumen.
 
 Para la demostración conviene el modo producción (más rápido y estable):
 

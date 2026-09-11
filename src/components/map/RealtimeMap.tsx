@@ -8,6 +8,7 @@ import { useIncidents } from "@/hooks/useIncidents";
 import { useUnits } from "@/hooks/useUnits";
 import { useUIStore } from "@/store/ui.store";
 import { AVAILABILITY_CONFIG, INSTITUTION_CONFIG, QUIBDO_CENTER, STATUS_CONFIG } from "@/lib/constants";
+import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, TILE_SUBDOMAINS, TILE_URL } from "@/lib/mapTiles";
 import type { Incident } from "@/types/incident.types";
 import type { Unit } from "@/types/unit.types";
 
@@ -141,9 +142,10 @@ export function RealtimeMap() {
       zoomControl
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors &copy; <a href="https://carto.com">CARTO</a>'
-        maxZoom={19}
+        url={TILE_URL}
+        attribution={TILE_ATTRIBUTION}
+        subdomains={TILE_SUBDOMAINS}
+        maxZoom={TILE_MAX_ZOOM}
       />
       <DispatchLines />
       <IncidentMarkers />

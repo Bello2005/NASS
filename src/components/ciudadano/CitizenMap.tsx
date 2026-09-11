@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { INSTITUTION_CONFIG, QUIBDO_CENTER } from "@/lib/constants";
+import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, TILE_SUBDOMAINS, TILE_URL } from "@/lib/mapTiles";
 import type { GeoPoint } from "@/types/incident.types";
 import type { Unit } from "@/types/unit.types";
 
@@ -103,9 +104,10 @@ export function CitizenMap(props: CitizenMapProps) {
       dragging
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        maxZoom={19}
-        attribution='&copy; OpenStreetMap &copy; CARTO'
+        url={TILE_URL}
+        attribution={TILE_ATTRIBUTION}
+        subdomains={TILE_SUBDOMAINS}
+        maxZoom={TILE_MAX_ZOOM}
       />
       <Markers {...props} />
     </MapContainer>

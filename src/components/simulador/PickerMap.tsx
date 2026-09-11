@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useUnits } from "@/hooks/useUnits";
 import { INSTITUTION_CONFIG, QUIBDO_CENTER } from "@/lib/constants";
+import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, TILE_SUBDOMAINS, TILE_URL } from "@/lib/mapTiles";
 
 interface PickerMapProps {
   point: { lat: number; lng: number };
@@ -67,9 +68,10 @@ export function PickerMap(props: PickerMapProps) {
       style={{ height: "100%", width: "100%", background: "#0c0c0c" }}
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution="&copy; OpenStreetMap &copy; CARTO"
-        maxZoom={19}
+        url={TILE_URL}
+        attribution={TILE_ATTRIBUTION}
+        subdomains={TILE_SUBDOMAINS}
+        maxZoom={TILE_MAX_ZOOM}
       />
       <Picker {...props} />
     </MapContainer>
