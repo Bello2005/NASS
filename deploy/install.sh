@@ -56,6 +56,13 @@ done
 
 # Puerto libre a partir del 3100: el 3000 suele estar ocupado.
 PUERTO="${NASS_PORT:-}"
+# Si ya hay una instalación previa, se reutiliza su puerto. Sin esto cada
+# reinstalación tomaría el siguiente libre, porque la instancia anterior sigue
+# viva mientras se hace la comprobación.
+if [[ -z "$PUERTO" && -f /etc/nginx/sites-enabled/nass.conf ]]; then
+  PUERTO="$(grep -oP 'proxy_pass http://127\.0\.0\.1:\K[0-9]+' /etc/nginx/sites-enabled/nass.conf | head -1)"
+  [[ -n "$PUERTO" ]] && verde "    reutilizando el puerto $PUERTO de la instalación anterior"
+fi
 if [[ -z "$PUERTO" ]]; then
   for p in $(seq 3100 3199); do
     if ! ss -ltn 2>/dev/null | grep -q ":${p}\b"; then PUERTO="$p"; break; fi
