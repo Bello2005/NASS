@@ -76,11 +76,19 @@ bash /tmp/nass-deploy/deploy/install.sh nass.tudominio.com tu@correo.com
 
 La primera pasada se detiene para que escribas la clave de CARTO en `/opt/nass/.env.local`
 (se incrusta al compilar, por eso no puede ir después). Rellénala y ejecuta el mismo comando otra
-vez: la segunda pasada termina la instalación.
+vez: la segunda termina la instalación.
 
-El script instala Node y nginx, crea el usuario de sistema `nass` —**la aplicación nunca corre como
-root**—, genera un `NASS_AUTH_SECRET` propio del servidor, añade swap si hace falta para compilar,
-monta el servicio systemd y pide el certificado TLS.
+### Convive con otros sitios en el mismo servidor
+
+El script está pensado para servidores que ya alojan otras aplicaciones:
+
+- **No reinstala Node** si ya hay una versión 20 o superior, que es lo que pide Next 16. Subir Node
+  a lo bruto puede romper las demás aplicaciones del servidor.
+- **Busca un puerto libre** a partir del 3100 en vez de asumir el 3000, que suele estar ocupado.
+- **No elimina ni modifica ninguna configuración de nginx existente.** Añade un sitio nuevo y, si
+  nginx lo rechaza, lo retira solo para no dejar la configuración global en mal estado.
+- **Usa PM2 si el servidor ya lo tiene**, para no mezclar dos estilos de gestión de procesos. Si no
+  hay PM2, instala un servicio systemd.
 
 ### Por qué el HTTPS no es opcional
 
@@ -90,12 +98,12 @@ final de la instalación.
 
 ### Operación
 
-| Para | Comando |
-|---|---|
-| Ver estado | `systemctl status nass` |
-| Seguir el registro | `journalctl -u nass -f` |
-| Reiniciar | `systemctl restart nass` |
-| Publicar cambios | `bash /opt/nass/deploy/update.sh` |
+| Para | Con PM2 | Con systemd |
+|---|---|---|
+| Ver estado | `pm2 status nass` | `systemctl status nass` |
+| Seguir el registro | `pm2 logs nass` | `journalctl -u nass -f` |
+| Reiniciar | `pm2 restart nass` | `systemctl restart nass` |
+| Publicar cambios | `bash /opt/nass/deploy/update.sh` | igual |
 
 Para desplegar otra rama: `NASS_BRANCH=main bash deploy/install.sh ...`
 
@@ -104,8 +112,10 @@ Para desplegar otra rama: `NASS_BRANCH=main bash deploy/install.sh ...`
 - **Los datos viven en memoria.** Reiniciar el servicio devuelve el sistema a los datos de
   demostración. Sirve para demostrar y pilotar, no para operar de verdad; eso lo resuelve la
   migración a PostgreSQL.
-- La aplicación escucha solo en `127.0.0.1:3000`. Nginx es la única puerta: el puerto 3000 no queda
-  expuesto.
+- La aplicación escucha solo en `127.0.0.1` y en el puerto que el script haya elegido. Nginx es la
+  única puerta: ese puerto no queda expuesto al exterior.
+- Corre en **una sola instancia**. El almacén, el canal de eventos y el simulador viven en el
+  proceso: varias instancias partirían el estado en dos.
 - Nginx va configurado con `proxy_buffering off` y tiempos largos, o cortaría el canal de eventos
   en tiempo real, y reenvía `X-Forwarded-For`, del que depende el limitador de peticiones.
 
