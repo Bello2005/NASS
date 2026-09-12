@@ -90,6 +90,17 @@ El script está pensado para servidores que ya alojan otras aplicaciones:
 - **Usa PM2 si el servidor ya lo tiene**, para no mezclar dos estilos de gestión de procesos. Si no
   hay PM2, instala un servicio systemd.
 
+### Comprobar que quedó bien
+
+```bash
+bash /opt/nass/deploy/check.sh nass.tudominio.com
+```
+
+Revisa el proceso, que el puerto interno no esté expuesto, que la clave del mapa que hay en
+`.env.local` sea la misma que quedó incrustada en el paquete, el certificado, el inicio de sesión,
+la API y que el canal de eventos transmita de verdad a través de nginx. No modifica nada ni imprime
+secretos.
+
 ### Por qué el HTTPS no es opcional
 
 `navigator.geolocation` solo funciona en contexto seguro. **Sin certificado, el botón de pánico no
@@ -104,6 +115,7 @@ final de la instalación.
 | Seguir el registro | `pm2 logs nass` | `journalctl -u nass -f` |
 | Reiniciar | `pm2 restart nass` | `systemctl restart nass` |
 | Publicar cambios | `bash /opt/nass/deploy/update.sh` | igual |
+| Verificar el despliegue | `bash /opt/nass/deploy/check.sh tudominio.com` | igual |
 
 Para desplegar otra rama: `NASS_BRANCH=main bash deploy/install.sh ...`
 
