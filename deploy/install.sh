@@ -103,18 +103,27 @@ else
   verde "    $ENV_FILE ya existe · se conserva"
 fi
 
-if ! grep -q '^NEXT_PUBLIC_CARTO_API_KEY=.\+' "$ENV_FILE"; then
-  echo
-  rojo "Falta la clave de CARTO."
-  echo
-  echo "  1. nano $ENV_FILE"
-  echo "  2. Rellena: NEXT_PUBLIC_CARTO_API_KEY=tu_clave"
-  echo "  3. Vuelve a ejecutar este mismo comando."
-  echo
-  echo "Sin clave el sistema funciona, pero el mapa sale con la marca de agua"
-  echo "'API KEY REQUIRED' encima."
-  exit 1
-fi
+CLAVE_CARTO="$(sed -n 's/^NEXT_PUBLIC_CARTO_API_KEY=//p' "$ENV_FILE" | head -1)"
+# Se rechazan también los marcadores de las instrucciones: es fácil pegar el
+# comando de ejemplo sin sustituirlos, y el valor se incrusta al compilar.
+case "${CLAVE_CARTO^^}" in
+  ""|TU_CLAVE|PEGA_AQUI|TU_KEY|YOUR_KEY|CLAVE|XXX*)
+    echo
+    rojo "La clave de CARTO falta o sigue siendo un marcador de ejemplo:"
+    rojo "    NEXT_PUBLIC_CARTO_API_KEY=${CLAVE_CARTO:-(vacío)}"
+    echo
+    echo "  Ponla con tu clave real (reemplaza SOLO la parte final):"
+    echo
+    echo "    sed -i 's|^NEXT_PUBLIC_CARTO_API_KEY=.*|NEXT_PUBLIC_CARTO_API_KEY=mi_clave_real|' $ENV_FILE"
+    echo
+    echo "  Y vuelve a ejecutar este mismo comando."
+    echo
+    echo "Sin clave válida el sistema funciona, pero el mapa sale con la marca"
+    echo "de agua 'API KEY REQUIRED' encima. Se obtiene en https://carto.com/"
+    exit 1
+    ;;
+esac
+verde "    clave de CARTO presente"
 
 paso "4/7 · Compilando (tarda unos minutos)"
 cd "$DESTINO"

@@ -11,6 +11,16 @@ RAMA="${NASS_BRANCH:-claude/nice-archimedes-3l6hid}"
 
 [[ "$(id -u)" -eq 0 ]] || { echo "Ejecuta este script como root." >&2; exit 1; }
 
+# Este script vive dentro del repositorio que va a actualizar. Bash lee el
+# archivo a medida que lo ejecuta, así que un `git reset` sobre sí mismo puede
+# provocar un comportamiento impredecible. Se copia a /tmp y sigue desde allí.
+if [[ "${NASS_REEJECUTADO:-}" != "1" ]]; then
+  COPIA="$(mktemp /tmp/nass-update-XXXXXX.sh)"
+  cp "${BASH_SOURCE[0]}" "$COPIA"
+  export NASS_REEJECUTADO=1
+  exec bash "$COPIA" "$@"
+fi
+
 echo "==> Trayendo $RAMA"
 git -C "$DESTINO" fetch --depth 1 origin "$RAMA"
 git -C "$DESTINO" reset --hard "origin/$RAMA"
