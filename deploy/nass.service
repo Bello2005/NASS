@@ -1,0 +1,38 @@
+[Unit]
+Description=NASS Ciudadano — plataforma de atención y seguridad ciudadana
+Documentation=https://github.com/Bello2005/NASS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nass
+Group=nass
+WorkingDirectory=/opt/nass
+
+# Escucha solo en local: nginx es la única puerta de entrada.
+# Sin -H, `next start` abriría 0.0.0.0 y el puerto 3000 quedaría expuesto.
+ExecStart=/usr/bin/npm start -- -H 127.0.0.1 -p 3000
+
+EnvironmentFile=/opt/nass/.env.local
+Environment=NODE_ENV=production
+Environment=npm_config_cache=/tmp/.npm
+
+Restart=on-failure
+RestartSec=5
+# Reiniciar devuelve el sistema a los datos demo: el almacén vive en memoria.
+
+# Endurecimiento básico
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nass
+
+[Install]
+WantedBy=multi-user.target

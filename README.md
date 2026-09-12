@@ -52,6 +52,65 @@ npm run build && npm start
 
 ---
 
+## Despliegue en un servidor propio
+
+NASS necesita **un proceso Node vivo y permanente**: el almacén de datos, el canal de eventos en
+tiempo real y el simulador de GPS viven en ese proceso. Por eso **no funciona en plataformas
+serverless** como Vercel, donde cada petición puede caer en una instancia distinta que no comparte
+nada con la anterior. Un VPS, Render, Railway o Fly.io sí sirven.
+
+La carpeta `deploy/` automatiza la instalación en un servidor Ubuntu o Debian limpio.
+
+### Antes de empezar
+
+Apunta el registro DNS **A** de tu subdominio a la IP del servidor. Sin eso, certbot no podrá
+emitir el certificado.
+
+### Instalación
+
+```bash
+ssh root@tu-servidor
+git clone https://github.com/Bello2005/NASS.git /tmp/nass-deploy
+bash /tmp/nass-deploy/deploy/install.sh nass.tudominio.com tu@correo.com
+```
+
+La primera pasada se detiene para que escribas la clave de CARTO en `/opt/nass/.env.local`
+(se incrusta al compilar, por eso no puede ir después). Rellénala y ejecuta el mismo comando otra
+vez: la segunda pasada termina la instalación.
+
+El script instala Node y nginx, crea el usuario de sistema `nass` —**la aplicación nunca corre como
+root**—, genera un `NASS_AUTH_SECRET` propio del servidor, añade swap si hace falta para compilar,
+monta el servicio systemd y pide el certificado TLS.
+
+### Por qué el HTTPS no es opcional
+
+`navigator.geolocation` solo funciona en contexto seguro. **Sin certificado, el botón de pánico no
+puede leer el GPS del celular** y el sistema pierde su función principal. Certbot lo resuelve al
+final de la instalación.
+
+### Operación
+
+| Para | Comando |
+|---|---|
+| Ver estado | `systemctl status nass` |
+| Seguir el registro | `journalctl -u nass -f` |
+| Reiniciar | `systemctl restart nass` |
+| Publicar cambios | `bash /opt/nass/deploy/update.sh` |
+
+Para desplegar otra rama: `NASS_BRANCH=main bash deploy/install.sh ...`
+
+### Lo que debes saber
+
+- **Los datos viven en memoria.** Reiniciar el servicio devuelve el sistema a los datos de
+  demostración. Sirve para demostrar y pilotar, no para operar de verdad; eso lo resuelve la
+  migración a PostgreSQL.
+- La aplicación escucha solo en `127.0.0.1:3000`. Nginx es la única puerta: el puerto 3000 no queda
+  expuesto.
+- Nginx va configurado con `proxy_buffering off` y tiempos largos, o cortaría el canal de eventos
+  en tiempo real, y reenvía `X-Forwarded-For`, del que depende el limitador de peticiones.
+
+---
+
 ## Cuentas de demostración
 
 Contraseña para todas: **`nass2026`**
